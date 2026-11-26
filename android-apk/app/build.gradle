@@ -1,0 +1,30 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'vn.grandspeak.hospitality'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "vn.grandspeak.hospitality"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            // Cho phép cài trực tiếp GrandSpeak.apk trên mọi thiết bị Android mà không cần Play Store signing
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
