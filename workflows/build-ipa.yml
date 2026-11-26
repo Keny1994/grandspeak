@@ -1,0 +1,36 @@
+name: Build GrandSpeak IPA (TrollStore)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ldid (pseudo-signer for TrollStore)
+        run: brew install ldid || true
+
+      - name: Verify GrandSpeak icons & Compile arm64 iOS IPA
+        run: |
+          if [ -d "ios-trollstore" ]; then
+            cd ios-trollstore
+          fi
+          if [ ! -f "Resources/AppIcon60x60@3x.png" ]; then
+            node tools/make-icons.mjs
+          fi
+          chmod +x build.sh
+          bash build.sh
+
+      - name: Upload GrandSpeak.ipa Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GrandSpeak-TrollStore-IPA
+          path: |
+            build/GrandSpeak.ipa
+            ios-trollstore/build/GrandSpeak.ipa
+          if-no-files-found: error
