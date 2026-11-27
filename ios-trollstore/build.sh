@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build GrandSpeak.ipa (ký giả ldid, dùng cho TrollStore). Chạy trên macOS có Xcode hoặc GitHub Actions.
+# Build GrandSpeak.ipa Độc lập 100% (Nhúng sẵn toàn bộ Web + Native Micro/TTS, ký giả ldid cho TrollStore).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -18,6 +18,10 @@ swiftc \
   -target arm64-apple-ios14.5 \
   -module-name GrandSpeak \
   -O \
+  -framework UIKit \
+  -framework WebKit \
+  -framework AVFoundation \
+  -framework Speech \
   Sources/*.swift \
   -o "$BUNDLE/$APP"
 
@@ -29,9 +33,17 @@ for icon in Resources/AppIcon*.png; do
   fi
 done
 
+if [ -d "Web" ]; then
+  cp -R "Web" "$BUNDLE/Web"
+  echo "Đã nhúng trọn bộ dữ liệu Web vào trong GrandSpeak.app/Web"
+else
+  echo "LỖI: Chưa có thư mục Web để nhúng vào IPA!" >&2
+  exit 1
+fi
+
 if command -v ldid >/dev/null 2>&1; then
   ldid -SEntitlements.plist "$BUNDLE/$APP"
-  echo "Đã ký giả (ldid)."
+  echo "Đã ký giả (ldid) chuẩn TrollStore."
 else
   echo "Không có ldid: TrollStore sẽ tự ký giả khi cài."
 fi

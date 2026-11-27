@@ -1,0 +1,93 @@
+name: Build GrandSpeak Standalone Mobile (iOS TrollStore IPA + Android APK)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build-ios-trollstore:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unpack standalone Web bundle into iOS app
+        run: |
+          rm -rf ios-trollstore/Web
+          mkdir -p ios-trollstore/Web
+          if [ -f "web-bundle.zip" ]; then
+            unzip -q web-bundle.zip -d ios-trollstore/Web
+          elif [ -f "scripts/build-prod.mjs" ]; then
+            node scripts/build-prod.mjs
+            cp -R dist/public/* ios-trollstore/Web/
+          else
+            echo "Missing web-bundle.zip" >&2
+            exit 1
+          fi
+
+      - name: Install ldid (pseudo-signer for TrollStore)
+        run: brew install ldid || true
+
+      - name: Compile standalone arm64 iOS IPA for TrollStore
+        run: |
+          cd ios-trollstore
+          if [ ! -f "Resources/AppIcon60x60@3x.png" ]; then
+            node tools/make-icons.mjs
+          fi
+          chmod +x build.sh
+          bash build.sh
+
+      - name: Upload GrandSpeak-TrollStore.ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: GrandSpeak-TrollStore-IPA
+          path: ios-trollstore/build/GrandSpeak.ipa
+          if-no-files-found: error
+
+  build-android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unpack standalone Web bundle into Android APK assets
+        run: |
+          rm -rf android-apk/app/src/main/assets/web
+          mkdir -p android-apk/app/src/main/assets/web
+          if [ -f "web-bundle.zip" ]; then
+            unzip -q web-bundle.zip -d android-apk/app/src/main/assets/web
+          elif [ -f "scripts/build-prod.mjs" ]; then
+            node scripts/build-prod.mjs
+            cp -R dist/public/* android-apk/app/src/main/assets/web/
+          else
+            echo "Missing web-bundle.zip" >&2
+            exit 1
+          fi
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Build signed Standalone Android Release APK
+        working-directory: android-apk
+        run: |
+          gradle assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/GrandSpeak.apk
+
+      - name: Upload GrandSpeak.apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: GrandSpeak-Android-APK
+          path: android-apk/app/build/outputs/apk/release/GrandSpeak.apk
+          if-no-files-found: error
